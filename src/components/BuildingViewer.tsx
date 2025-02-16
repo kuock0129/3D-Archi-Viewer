@@ -10,9 +10,11 @@ import type { BuildingData, Room } from './types';
 const BuildingViewer: React.FC = () => {
   const mountRef = useRef<HTMLDivElement>(null);
   const [isWireframe, setIsWireframe] = useState(false);
+  const [isMaterialMode, setIsMaterialMode] = useState(false);
   const [buildingData, setBuildingData] = useState<BuildingData | null>(null);
   const [error, setError] = useState('');
   const [showLabels, setShowLabels] = useState(true);
+
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -38,6 +40,9 @@ const BuildingViewer: React.FC = () => {
     reader.readAsText(file);
   };
 
+
+
+
   useEffect(() => {
     if (!buildingData || !mountRef.current) return;
 
@@ -49,6 +54,7 @@ const BuildingViewer: React.FC = () => {
     renderer.setSize(800, 600);
     renderer.setClearColor(0xf0f0f0);
     mountRef.current.appendChild(renderer.domElement);
+
 
     // Create CSS2D renderer for labels
     const labelRenderer = new CSS2DRenderer();
@@ -87,6 +93,31 @@ const BuildingViewer: React.FC = () => {
     const centerX = (maxX + minX) / 2;
     const centerZ = (maxZ + minZ) / 2;
 
+
+
+    // Create glass material for curtain walls
+    const glassMaterial = new THREE.MeshPhysicalMaterial({
+      color: 0xffffff,
+      transparent: true,
+      opacity: 0.3,
+      metalness: 0.1,
+      roughness: 0.1,
+      clearcoat: 1.0,
+      clearcoatRoughness: 0.1,
+      side: THREE.DoubleSide
+    });
+
+    // Create concrete material
+    const concreteMaterial = new THREE.MeshPhysicalMaterial({
+      color: 0xcccccc,
+      metalness: 0.1,
+      roughness: 0.8,
+      side: THREE.DoubleSide
+    });
+
+
+
+
     // Create room label
     const createRoomLabel = (room: Room, position: THREE.Vector3, floorNum: number): CSS2DObject => {
       const div = document.createElement('div');
@@ -114,30 +145,29 @@ const BuildingViewer: React.FC = () => {
       return label;
     };
 
-    // Create floor level plane
-    const createLevelPlane = (height: number): THREE.Mesh => {
-      const width = maxX - minX;
-      const depth = maxZ - minZ;
-      const geometry = new THREE.PlaneGeometry(width * 1.2, depth * 1.2);
-      const material = new THREE.MeshBasicMaterial({
-        color: 0x87CEEB,
-        transparent: true,
-        // opacity: 0.15,
-        opacity: 0.0,
-        side: THREE.DoubleSide
-      });
+    // // Create floor level plane
+    // const createLevelPlane = (height: number): THREE.Mesh => {
+    //   const width = maxX - minX;
+    //   const depth = maxZ - minZ;
+    //   const geometry = new THREE.PlaneGeometry(width * 1.2, depth * 1.2);
+    //   const material = new THREE.MeshBasicMaterial({
+    //     color: 0x87CEEB,
+    //     transparent: true,
+    //     // opacity: 0.15,
+    //     opacity: 0.0,
+    //     side: THREE.DoubleSide
+    //   });
       
-      const plane = new THREE.Mesh(geometry, material);
-      plane.rotation.x = -Math.PI / 2;
-      plane.position.set(0, height, 0);
-      return plane;
-    };
+    //   const plane = new THREE.Mesh(geometry, material);
+    //   plane.rotation.x = -Math.PI / 2;
+    //   plane.position.set(0, height, 0);
+    //   return plane;
+    // };
 
-    // Room creation function with label
     const createRoom = (room: Room, floorHeight: number, floorNum: number): THREE.Group => {
       const group = new THREE.Group();
       
-      // Create room mesh
+      // Create room shape
       const shape = new THREE.Shape();
       const coords = room.room_shape.coords.map(([x, z]) => [-1 * (x - centerX), z - centerZ]);
       
@@ -154,27 +184,50 @@ const BuildingViewer: React.FC = () => {
       };
 
       const geometry = new THREE.ExtrudeGeometry(shape, extrudeSettings);
-      const material = new THREE.MeshPhongMaterial({ 
-        color: roomColors[room.room_type] || 0x808080,
-        wireframe: isWireframe,
-        transparent: true,
-        opacity: 0.8
-      });
-
-      const mesh = new THREE.Mesh(geometry, material);
-      mesh.rotation.x = Math.PI / 2;
-      mesh.position.set(0, floorHeight, 0);
-      group.add(mesh);
-
-      // Calculate center position for label
-      const centerCoord = coords.reduce(
-        (acc, curr) => [acc[0] + curr[0], acc[1] + curr[1]],
-        [0, 0]
-      );
-      const avgX = centerCoord[0] / coords.length;
-      const avgZ = centerCoord[1] / coords.length;
       
+      let materials: THREE.Material[];
+      if (isMaterialMode) {
+        const isGlassWalled = room.room_type.toLowerCase() === 'office' || 
+                             room.room_type.toLowerCase() === 'entry lobby';
+        
+        if (isGlassWalled) {
+          // Create materials array for different faces
+          materials = [
+            concreteMaterial, // Floor
+            glassMaterial,    // Walls
+            concreteMaterial  // Ceiling
+          ];
+          
+          // Create a mesh with multiple materials
+          const mesh = new THREE.Mesh(geometry, materials);
+          mesh.rotation.x = Math.PI / 2;
+          mesh.position.set(0, floorHeight, 0);
+          group.add(mesh);
+        } else {
+          // Use concrete material for other rooms
+          const mesh = new THREE.Mesh(geometry, concreteMaterial);
+          mesh.rotation.x = Math.PI / 2;
+          mesh.position.set(0, floorHeight, 0);
+          group.add(mesh);
+        }
+      } else {
+        // Original color box mode
+        const material = new THREE.MeshPhongMaterial({ 
+          color: roomColors[room.room_type] || 0x808080,
+          wireframe: isWireframe,
+          transparent: true,
+          opacity: 0.8
+        });
+        const mesh = new THREE.Mesh(geometry, material);
+        mesh.rotation.x = Math.PI / 2;
+        mesh.position.set(0, floorHeight, 0);
+        group.add(mesh);
+      }
+
+      // Add label (keep existing label code)
       if (showLabels) {
+        const avgX = coords.reduce((sum, [x]) => sum + x, 0) / coords.length;
+        const avgZ = coords.reduce((sum, [, z]) => sum + z, 0) / coords.length;
         const labelPosition = new THREE.Vector3(avgX, floorHeight + 5, avgZ);
         const label = createRoomLabel(room, labelPosition, floorNum);
         group.add(label);
@@ -201,17 +254,17 @@ const BuildingViewer: React.FC = () => {
     scene.add(directionalLight);
 
     // Create ground plane
-    const groundSize = Math.max(maxX - minX, maxZ - minZ) * 1.5;
-    const groundGeometry = new THREE.PlaneGeometry(groundSize, groundSize);
-    const groundMaterial = new THREE.MeshStandardMaterial({ 
-      color: 0xcccccc,
-      side: THREE.DoubleSide,
-      transparent: true,
-      opacity: 0.0
-    });
-    const ground = new THREE.Mesh(groundGeometry, groundMaterial);
-    ground.rotation.x = -Math.PI / 2;
-    ground.position.y = 0;
+    // const groundSize = Math.max(maxX - minX, maxZ - minZ) * 1.5;
+    // const groundGeometry = new THREE.PlaneGeometry(groundSize, groundSize);
+    // const groundMaterial = new THREE.MeshStandardMaterial({ 
+    //   color: 0xcccccc,
+    //   side: THREE.DoubleSide,
+    //   transparent: true,
+    //   opacity: 0.0
+    // });
+    // const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+    // ground.rotation.x = -Math.PI / 2;
+    // ground.position.y = 0;
     // scene.add(ground);
 
     // Building group
@@ -266,7 +319,7 @@ const BuildingViewer: React.FC = () => {
         mountRef.current.removeChild(labelRenderer.domElement);
       }
     };
-  }, [buildingData, isWireframe, showLabels]);
+  }, [buildingData, isWireframe, showLabels, isMaterialMode]);
 
   return (
     <Card className="p-4 w-full max-w-4xl">
@@ -297,6 +350,15 @@ const BuildingViewer: React.FC = () => {
                     className="form-checkbox"
                   />
                   <span>Wireframe Mode</span>
+                </label>
+                <label className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    checked={isMaterialMode}
+                    onChange={() => setIsMaterialMode(prev => !prev)}
+                    className="form-checkbox"
+                  />
+                  <span>Material Mode</span>
                 </label>
                 <label className="flex items-center space-x-2">
                   <input
