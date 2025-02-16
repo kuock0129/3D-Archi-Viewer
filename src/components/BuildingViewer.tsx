@@ -3,15 +3,16 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
+import { CSS2DRenderer, CSS2DObject } from 'three/examples/jsm/renderers/CSS2DRenderer';
 import { Upload } from 'lucide-react';
 import type { BuildingData, Room } from './types';
 
 const BuildingViewer: React.FC = () => {
   const mountRef = useRef<HTMLDivElement>(null);
-  const [floorIndex, setFloorIndex] = useState(0);
   const [isWireframe, setIsWireframe] = useState(false);
   const [buildingData, setBuildingData] = useState<BuildingData | null>(null);
   const [error, setError] = useState('');
+  const [showLabels, setShowLabels] = useState(true);
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -49,37 +50,103 @@ const BuildingViewer: React.FC = () => {
     renderer.setClearColor(0xf0f0f0);
     mountRef.current.appendChild(renderer.domElement);
 
-    // Add lights
+    // Create CSS2D renderer for labels
+    const labelRenderer = new CSS2DRenderer();
+    labelRenderer.setSize(800, 600);
+    labelRenderer.domElement.style.position = 'absolute';
+    labelRenderer.domElement.style.top = '0';
+    labelRenderer.domElement.style.pointerEvents = 'none';
+    mountRef.current.appendChild(labelRenderer.domElement);
+
+    // Lighting setup
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
-    scene.add(ambientLight);
     const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
-    directionalLight.position.set(0, 10, 10);
+    directionalLight.position.set(50, 50, 50);
+    scene.add(ambientLight);
     scene.add(directionalLight);
 
-    // Add controls
+    // Controls setup
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
 
-    // Set camera position
-    camera.position.set(50, 50, 100);
-    camera.lookAt(0, 0, 0);
+    // Calculate building bounds
+    let minX = Infinity, maxX = -Infinity;
+    let minZ = Infinity, maxZ = -Infinity;
+    
+    buildingData.forEach(floor => {
+      floor.rooms.forEach(room => {
+        room.room_shape.coords.forEach(([x, z]) => {
+          minX = Math.min(minX, x);
+          maxX = Math.max(maxX, x);
+          minZ = Math.min(minZ, z);
+          maxZ = Math.max(maxZ, z);
+        });
+      });
+    });
 
-    // Function to create a room mesh
-    const createRoom = (
-      coords: [number, number][],
-      height: number,
-      color: number
-    ): THREE.Mesh => {
+    const centerX = (maxX + minX) / 2;
+    const centerZ = (maxZ + minZ) / 2;
+
+    // Create room label
+    const createRoomLabel = (room: Room, position: THREE.Vector3, floorNum: number): CSS2DObject => {
+      const div = document.createElement('div');
+      div.className = 'label';
+      div.style.backgroundColor = 'rgba(0, 0, 0, 0.2)';
+      div.style.color = 'white';
+      div.style.padding = '5px';
+      div.style.borderRadius = '4px';
+      div.style.fontSize = '12px';
+      div.style.pointerEvents = 'none';
+      div.style.whiteSpace = 'pre-line';
+      
+      const content = [
+        `Type: ${room.room_type}`,
+        `Floor: ${floorNum}`,
+        `Coords: ${JSON.stringify(room.room_shape.coords[0])}`,
+        room.room_id ? `ID: ${room.room_id}` : '',
+        room.room_name ? `Name: ${room.room_name}` : ''
+      ].filter(Boolean).join('\n');
+      
+      div.textContent = content;
+      
+      const label = new CSS2DObject(div);
+      label.position.copy(position);
+      return label;
+    };
+
+    // Create floor level plane
+    const createLevelPlane = (height: number): THREE.Mesh => {
+      const width = maxX - minX;
+      const depth = maxZ - minZ;
+      const geometry = new THREE.PlaneGeometry(width * 1.2, depth * 1.2);
+      const material = new THREE.MeshBasicMaterial({
+        color: 0x87CEEB,
+        transparent: true,
+        // opacity: 0.15,
+        opacity: 0.0,
+        side: THREE.DoubleSide
+      });
+      
+      const plane = new THREE.Mesh(geometry, material);
+      plane.rotation.x = -Math.PI / 2;
+      plane.position.set(0, height, 0);
+      return plane;
+    };
+
+    // Room creation function with label
+    const createRoom = (room: Room, floorHeight: number, floorNum: number): THREE.Group => {
+      const group = new THREE.Group();
+      
+      // Create room mesh
       const shape = new THREE.Shape();
+      const coords = room.room_shape.coords.map(([x, z]) => [-1 * (x - centerX), z - centerZ]);
       
-      // Move to first point
       shape.moveTo(coords[0][0], coords[0][1]);
-      
-      // Draw lines to subsequent points
       for (let i = 1; i < coords.length; i++) {
         shape.lineTo(coords[i][0], coords[i][1]);
       }
 
+      const height = 10;
       const extrudeSettings = {
         steps: 1,
         depth: height,
@@ -88,13 +155,32 @@ const BuildingViewer: React.FC = () => {
 
       const geometry = new THREE.ExtrudeGeometry(shape, extrudeSettings);
       const material = new THREE.MeshPhongMaterial({ 
-        color: color,
+        color: roomColors[room.room_type] || 0x808080,
         wireframe: isWireframe,
         transparent: true,
         opacity: 0.8
       });
 
-      return new THREE.Mesh(geometry, material);
+      const mesh = new THREE.Mesh(geometry, material);
+      mesh.rotation.x = Math.PI / 2;
+      mesh.position.set(0, floorHeight, 0);
+      group.add(mesh);
+
+      // Calculate center position for label
+      const centerCoord = coords.reduce(
+        (acc, curr) => [acc[0] + curr[0], acc[1] + curr[1]],
+        [0, 0]
+      );
+      const avgX = centerCoord[0] / coords.length;
+      const avgZ = centerCoord[1] / coords.length;
+      
+      if (showLabels) {
+        const labelPosition = new THREE.Vector3(avgX, floorHeight + 5, avgZ);
+        const label = createRoomLabel(room, labelPosition, floorNum);
+        group.add(label);
+      }
+
+      return group;
     };
 
     const roomColors: Record<string, number> = {
@@ -109,30 +195,58 @@ const BuildingViewer: React.FC = () => {
       'Entry Lobby': 0xADD8E6
     };
 
-    // Clear previous geometry
+    // Clear scene
     scene.clear();
     scene.add(ambientLight);
     scene.add(directionalLight);
 
-    // Add rooms for selected floor
-    const currentFloor = buildingData[floorIndex];
-    if (currentFloor && currentFloor.rooms) {
-      const floorHeight = currentFloor.floor_height;
-      currentFloor.rooms.forEach((room: Room) => {
-        const coords = room.room_shape.coords;
-        const height = 10; // You might want to calculate this based on floor heights
-        const color = roomColors[room.room_type] || 0x808080;
-        const roomMesh = createRoom(coords, height, color);
-        roomMesh.position.y = floorHeight;
-        scene.add(roomMesh);
-      });
-    }
+    // Create ground plane
+    const groundSize = Math.max(maxX - minX, maxZ - minZ) * 1.5;
+    const groundGeometry = new THREE.PlaneGeometry(groundSize, groundSize);
+    const groundMaterial = new THREE.MeshStandardMaterial({ 
+      color: 0xcccccc,
+      side: THREE.DoubleSide,
+      transparent: true,
+      opacity: 0.0
+    });
+    const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+    ground.rotation.x = -Math.PI / 2;
+    ground.position.y = 0;
+    // scene.add(ground);
 
-    // Animation loop
+    // Building group
+    const buildingGroup = new THREE.Group();
+
+    // Add rooms and level planes starting from ground level (y=0)
+    buildingData.forEach((floor, index) => {
+      // Start from height 0 instead of letting first floor go below ground
+      const floorHeight = index * 10;
+      
+      // Add level plane
+      // const levelPlane = createLevelPlane(floorHeight);
+      // buildingGroup.add(levelPlane);
+      
+      // Add rooms with labels
+      floor.rooms.forEach(room => {
+        const roomGroup = createRoom(room, floorHeight, index);
+        buildingGroup.add(roomGroup);
+      });
+    });
+
+    scene.add(buildingGroup);
+
+    // Position camera
+    const buildingHeight = buildingData.length * 10;
+    const maxDimension = Math.max(maxX - minX, maxZ - minZ);
+    camera.position.set(maxDimension * 1.5, buildingHeight * 1.2, maxDimension * 1.5);
+    camera.lookAt(0, buildingHeight / 2, 0);
+
+    // Animation loop with label renderer
     const animate = () => {
       requestAnimationFrame(animate);
       controls.update();
       renderer.render(scene, camera);
+      labelRenderer.render(scene, camera);
     };
     animate();
 
@@ -141,17 +255,18 @@ const BuildingViewer: React.FC = () => {
       camera.aspect = 800 / 600;
       camera.updateProjectionMatrix();
       renderer.setSize(800, 600);
+      labelRenderer.setSize(800, 600);
     };
     window.addEventListener('resize', handleResize);
 
-    // Cleanup
     return () => {
       window.removeEventListener('resize', handleResize);
       if (mountRef.current) {
         mountRef.current.removeChild(renderer.domElement);
+        mountRef.current.removeChild(labelRenderer.domElement);
       }
     };
-  }, [buildingData, floorIndex, isWireframe]);
+  }, [buildingData, isWireframe, showLabels]);
 
   return (
     <Card className="p-4 w-full max-w-4xl">
@@ -173,22 +288,6 @@ const BuildingViewer: React.FC = () => {
         ) : (
           <>
             <div className="flex justify-between items-center">
-              <div className="space-x-2">
-                <button 
-                  className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:bg-gray-300"
-                  onClick={() => setFloorIndex(prev => Math.max(0, prev - 1))}
-                  disabled={floorIndex === 0}
-                >
-                  Previous Floor
-                </button>
-                <button 
-                  className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:bg-gray-300"
-                  onClick={() => setFloorIndex(prev => Math.min(buildingData.length - 1, prev + 1))}
-                  disabled={floorIndex === buildingData.length - 1}
-                >
-                  Next Floor
-                </button>
-              </div>
               <div className="flex items-center gap-4">
                 <label className="flex items-center space-x-2">
                   <input
@@ -198,6 +297,15 @@ const BuildingViewer: React.FC = () => {
                     className="form-checkbox"
                   />
                   <span>Wireframe Mode</span>
+                </label>
+                <label className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    checked={showLabels}
+                    onChange={() => setShowLabels(prev => !prev)}
+                    className="form-checkbox"
+                  />
+                  <span>Show Labels</span>
                 </label>
                 <button 
                   className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600"
@@ -209,7 +317,7 @@ const BuildingViewer: React.FC = () => {
             </div>
             <div ref={mountRef} className="w-full h-[600px] border rounded" />
             <div className="text-center">
-              Floor {floorIndex + 1} of {buildingData.length}
+              Total Floors: {buildingData.length}
             </div>
           </>
         )}
