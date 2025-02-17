@@ -1,36 +1,88 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 3D Architectural Viewer
 
-## Getting Started
+A React-based 3D architectural viewer using Three.js to visualize building structures from JSON data files. This project allows users to upload JSON files containing building data and visualize the structure in various modes.
 
-First, run the development server:
+## Features
+- **3D Visualization**: Render 3D models of buildings with different visualization modes.
+- **Interactive Controls**: Orbit controls for navigating the 3D scene.
+- **Hover Effects**: Highlight rooms on hover with detailed information.
+- **Dynamic Loading**: Upload JSON files to dynamically load and visualize building data.
+- **Multiple Modes**: Toggle between ColorBox, Material, and Wireframe modes.
+- **Labels**: Display labels with room information.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+## Installation
+
+### Clone the repository:
+```sh
+git https://github.com/kuock0129/3D-Archi-Viewer.git
+cd 3D-Archi-Viewer
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Install dependencies:
+```sh
+npm install
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Start the development server:
+```sh
+npm run dev
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### Open the browser
+```sh
+http://localhost:3000 
+```
 
-## Learn More
+## Usage
+1. Open the application in your browser.
+2. Upload a JSON file containing building data.
+3. Use the checkboxes to toggle between different visualization modes and labels.
+4. Hover over rooms to see detailed information.
 
-To learn more about Next.js, take a look at the following resources:
+## JSON File Format
+The JSON file should contain an array of floors, each with an array of rooms. Each room should have a shape defined by coordinates, a type, an ID, and a name. Example:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```json
+{
+  "floors": [
+    {
+      "id": 1,
+      "rooms": [
+        {
+          "id": "101",
+          "name": "Living Room",
+          "type": "residential",
+          "shape": [
+            { "x": 0, "y": 0 },
+            { "x": 5, "y": 0 },
+            { "x": 5, "y": 5 },
+            { "x": 0, "y": 5 }
+          ]
+        }
+      ]
+    }
+  ]
+}
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Project Structure
+- `BuildingViewer.tsx`: Main component for the 3D viewer.
+- `src/components/types.ts`: Type definitions for building data.
+- `src/components/mode/`: Contains modules for different visualization modes.
+- `src/components/effect/`: Contains modules for hover effects.
+- `src/components/build_config.ts`: Configuration constants for the viewer.
 
-## Deploy on Vercel
+## Dependencies
+- **React**: JavaScript library for building user interfaces.
+- **Three.js**: JavaScript 3D library for rendering 3D graphics.
+- **OrbitControls**: Three.js module for camera controls.
+- **CSS2DRenderer**: Three.js module for rendering 2D elements in 3D space.
+- **Tailwind CSS**: Utility-first CSS framework for styling.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## License
+This project is licensed under the MIT License. See the `LICENSE` file for details.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Acknowledgements
+- [Three.js](https://threejs.org/)
+- [React](https://react.dev/)
+- [Tailwind CSS](https://tailwindcss.com/)

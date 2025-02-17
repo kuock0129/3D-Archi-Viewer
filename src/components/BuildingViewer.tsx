@@ -210,10 +210,6 @@ const BuildingViewer: React.FC = () => {
     const raycaster = new THREE.Raycaster();
     const mouse = new THREE.Vector2();
     
-    // Helper function to reset hover effects
-    
-    // Helper function to apply hover effects for a room
-    
     const onMouseMove = (event: MouseEvent) => {
       const rect = renderer.domElement.getBoundingClientRect();
       mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
