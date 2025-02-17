@@ -46,7 +46,9 @@ http://localhost:3000
 4. Hover over rooms to see detailed information.
 
 ## JSON File Format
-The JSON file should contain an array of floors, each with an array of rooms. Each room should have a shape defined by coordinates, a type, an ID, and a name. Example:
+The JSON file should contain an array of floors, each with an array of rooms. Each room should have a shape defined by coordinates, a type, an ID, and a name. The example is in the `example/` folder.
+
+Example:
 
 ```json
 {
