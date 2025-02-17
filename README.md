@@ -5,7 +5,7 @@ A React-based 3D architectural viewer using Three.js to visualize building struc
 <p align="center">
     <img src="public/wireframe.png" width="30%" />
     <img src="public/material.png" width="30%" />
-    <img src="public/colorbox.png" width="30%" />
+    <img src="public/colorBox.png" width="30%" />
 </p>
 
 ## Features
