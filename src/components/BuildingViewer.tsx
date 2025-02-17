@@ -75,7 +75,7 @@ const BuildingViewer: React.FC = () => {
     // Lighting setup
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
     const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5);
-    directionalLight.position.set(50, 50, 50);
+    directionalLight.position.set(5, 100, 50);
     scene.add(ambientLight);
     scene.add(directionalLight);
 
@@ -501,7 +501,7 @@ const BuildingViewer: React.FC = () => {
                   onChange={() => setShowColorBox(prev => !prev)}
                   className="form-checkbox"
                 />
-                <span>Color Box Layer</span>
+                <span>Color Box Mode</span>
               </label>
               <label className="flex items-center space-x-2">
                 <input
@@ -510,7 +510,7 @@ const BuildingViewer: React.FC = () => {
                   onChange={() => setShowMaterialMode(prev => !prev)}
                   className="form-checkbox"
                 />
-                <span>Material Layer</span>
+                <span>Material Mode</span>
               </label>
               <label className="flex items-center space-x-2">
                 <input
@@ -519,7 +519,7 @@ const BuildingViewer: React.FC = () => {
                   onChange={() => setShowWireframe(prev => !prev)}
                   className="form-checkbox"
                 />
-                <span>Wireframe Layer</span>
+                <span>Wireframe Mode</span>
               </label>
               <label className="flex items-center space-x-2">
                 <input
@@ -538,13 +538,13 @@ const BuildingViewer: React.FC = () => {
               </button>
             </div>
             <div ref={mountRef} className="w-full h-[600px] border rounded relative">
-              {hoveredRoom && (
+              {/* {hoveredRoom && (
                 <div className="absolute top-2 left-2 bg-black bg-opacity-75 text-white p-2 rounded">
                   <p>Type: {hoveredRoom.room_type}</p>
                   {hoveredRoom.room_name && <p>Name: {hoveredRoom.room_name}</p>}
                   {hoveredRoom.room_id && <p>ID: {hoveredRoom.room_id}</p>}
                 </div>
-              )}
+              )} */}
             </div>
             <div className="text-center">
               Total Floors: {buildingData.length}
