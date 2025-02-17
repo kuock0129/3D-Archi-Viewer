@@ -51,26 +51,32 @@ The JSON file should contain an array of floors, each with an array of rooms. Ea
 Example:
 
 ```json
-{
-  "floors": [
-    {
-      "id": 1,
-      "rooms": [
-        {
-          "id": "101",
-          "name": "Living Room",
-          "type": "residential",
-          "shape": [
-            { "x": 0, "y": 0 },
-            { "x": 5, "y": 0 },
-            { "x": 5, "y": 5 },
-            { "x": 0, "y": 5 }
-          ]
-        }
-      ]
-    }
-  ]
-}
+
+[
+  {
+    "floor_height": 0.0,
+    "rooms": [
+      {
+        "room_type": "Living Room",
+        "room_id": "0,0",
+        "room_shape": {
+          "type": "PolylineCurve",
+          "coords": [
+            [x1, y1],
+            [x2, y2],
+            [x3, y3],
+            [x4, y4],
+            [x1, y1]
+          ],
+          "degree": 1,
+          "is_closed": true,
+          "is_periodic": false
+        },
+        "room_inner_shapes": []
+      }
+    ]
+  }
+]
 ```
 
 ## Project Structure
