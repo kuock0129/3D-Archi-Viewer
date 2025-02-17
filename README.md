@@ -2,6 +2,12 @@
 
 A React-based 3D architectural viewer using Three.js to visualize building structures from JSON data files. This project allows users to upload JSON files containing building data and visualize the structure in various modes.
 
+<p align="center">
+    <img src="public/wireframe.png" width="30%" />
+    <img src="public/material.png" width="30%" />
+    <img src="public/colorbox.png" width="30%" />
+</p>
+
 ## Features
 - **3D Visualization**: Render 3D models of buildings with different visualization modes.
 - **Interactive Controls**: Orbit controls for navigating the 3D scene.
